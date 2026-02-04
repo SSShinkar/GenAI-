@@ -1,0 +1,43 @@
+AI Operations Assistant
+
+A multi-agent AI system built for the GenAI Intern Assignment. This assistant uses a Planner-Executor-Verifier architecture to handle complex natural language tasks by orchestrating real API calls.
+
+Architecture
+
+Planner: Deconstructs user queries into a sequence of tool-specific steps.
+
+Executor: Processes the plan, handles API authentication, and gathers raw data.
+
+Verifier: Critiques the gathered data and formats the final response for the user.
+
+Setup
+
+Clone this repository logic.
+
+Install dependencies:
+
+pip install -r requirements.txt
+
+
+Configure your environment:
+Create a .env file and add:
+
+GEMINI_API_KEY=your_api_key_here
+
+
+Usage
+
+Run the main script:
+
+python main.py "Find the top 3 Python repositories on GitHub and tell me the current weather in San Francisco."
+
+
+Features 
+
+GitHub Repository Search Integration
+
+Real-time Weather Data (Open-Meteo)
+
+Exponential backoff for LLM calls
+
+Structured JSON reasoning
