@@ -1,0 +1,36 @@
+import os
+import httpx
+import time
+import json
+from typing import Any, Dict, List, Optional
+
+class LLMClient:
+    def __init__(self):
+        self.api_key = os.getenv("GEMINI_API_KEY", "")
+        self.model = "gemini-2.5-flash-preview-09-2025"
+        self.base_url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
+
+    def call(self, prompt: str, system_instruction: str = "", json_mode: bool = False) -> str:
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "systemInstruction": {"parts": [{"text": system_instruction}]} if system_instruction else None
+        }
+        
+        if json_mode:
+            payload["generationConfig"] = {"responseMimeType": "application/json"}
+
+        for attempt in range(5):
+            try:
+                response = httpx.post(
+                    f"{self.base_url}?key={self.api_key}",
+                    json=payload,
+                    timeout=30.0
+                )
+                response.raise_for_status()
+                result = response.json()
+                return result['candidates'][0]['content']['parts'][0]['text']
+            except Exception:
+                if attempt == 4:
+                    raise
+                time.sleep(2 ** attempt)
+        return ""
