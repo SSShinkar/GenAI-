@@ -1,0 +1,51 @@
+import httpx
+from typing import Dict, Any, List
+
+class GitHubTool:
+    @staticmethod
+    async def search_repositories(query: str, limit: int = 5) -> List[Dict[str, Any]]:
+        url = f"https://api.github.com/search/repositories?q={query}&sort=stars&order=desc&per_page={limit}"
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url)
+            if resp.status_code != 200:
+                return [{"error": "GitHub API failed"}]
+            data = resp.json()
+            return [
+                {
+                    "name": repo["full_name"],
+                    "stars": repo["stargazers_count"],
+                    "description": repo["description"],
+                    "url": repo["html_url"]
+                }
+                for repo in data.get("items", [])
+            ]
+
+class WeatherTool:
+    @staticmethod
+    async def get_weather(city: str) -> Dict[str, Any]:
+        geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={city}&count=1"                                       # Geocoding (Convert city to lat/long)
+        async with httpx.AsyncClient() as client:
+            geo_resp = await client.get(geo_url)
+            geo_data = geo_resp.json()
+            if not geo_data.get("results"):
+                return {"error": f"City {city} not found"}
+            
+            loc = geo_data["results"][0]
+            lat, lon = loc["latitude"], loc["longitude"]
+            
+            weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"        # Fetch Weather
+            w_resp = await client.get(weather_url)
+            w_data = w_resp.json()
+            return {
+                "city": city,
+                "temperature": w_data["current_weather"]["temperature"],
+                "windspeed": w_data["current_weather"]["windspeed"],
+                "condition_code": w_data["current_weather"]["weathercode"]
+            }
+
+async def execute_tool(tool_name: str, args: Dict[str, Any]) -> Any:
+    if tool_name == "github_search":
+        return await GitHubTool.search_repositories(args.get("query", ""), args.get("limit", 3))
+    elif tool_name == "get_weather":
+        return await WeatherTool.get_weather(args.get("city", ""))
+    return {"error": f"Tool {tool_name} not found"}
