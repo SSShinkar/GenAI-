@@ -1,0 +1,49 @@
+import json
+from typing import List, Dict, Any
+from llm.client import LLMClient
+from tools.registry import execute_tool
+
+class PlannerAgent:
+    def __init__(self, client: LLMClient):
+        self.client = client
+        self.system_prompt = """
+        You are a Planner Agent. Convert user tasks into a step-by-step plan.
+        Available tools:
+        1. github_search(query: str, limit: int)
+        2. get_weather(city: str)
+        
+        Return JSON format:
+        {
+          "steps": [
+            {"id": 1, "tool": "tool_name", "args": {"arg1": "val1"}}
+          ],
+          "goal": "description of intent"
+        }
+        """
+
+    def create_plan(self, task: str) -> Dict[str, Any]:
+        response = self.client.call(task, self.system_prompt, json_mode=True)
+        return json.loads(response)
+
+class ExecutorAgent:
+    async def run_plan(self, plan: Dict[str, Any]) -> List[Dict[str, Any]]:
+        results = []
+        for step in plan.get("steps", []):
+            tool_name = step.get("tool")
+            args = step.get("args", {})
+            data = await execute_tool(tool_name, args)
+            results.append({"step_id": step["id"], "tool": tool_name, "output": data})
+        return results
+
+class VerifierAgent:
+    def __init__(self, client: LLMClient):
+        self.client = client
+        self.system_prompt = """
+        You are a Verifier Agent. Review the raw tool outputs against the original user goal.
+        Ensure the answer is professional, accurate, and complete. 
+        If data is missing, note it. Format as a clean final report.
+        """
+
+    def verify_and_format(self, task: str, results: List[Dict[str, Any]]) -> str:
+        prompt = f"Original Task: {task}\n\nTool Results: {json.dumps(results)}"
+        return self.client.call(prompt, self.system_prompt)
